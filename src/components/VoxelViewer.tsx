@@ -17,6 +17,7 @@ export default function VoxelViewer({ data, className }: Props) {
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
   const instancedRef = useRef<THREE.InstancedMesh | null>(null);
+  const framedRef = useRef(false);
 
   // ---- one-time scene setup ----
   useEffect(() => {
@@ -129,15 +130,20 @@ export default function VoxelViewer({ data, className }: Props) {
     scene.add(mesh);
     instancedRef.current = mesh;
 
-    // Frame camera to the grid extents.
-    const extent = Math.max(dims[0], dims[1], dims[2]) * voxelSize || 1;
-    const dist = extent / (2 * Math.tan((Math.PI * camera.fov) / 360));
-    camera.position.set(dist * 1.1, dist * 0.9, dist * 1.4);
-    camera.near = extent / 100;
-    camera.far = extent * 100;
-    camera.updateProjectionMatrix();
-    controls.target.set(0, 0, 0);
-    controls.update();
+    // Frame the camera only on the first build. The grid stays centred on the
+    // world origin and occupies the same volume at any resolution, so later
+    // re-voxelizations keep whatever view the user has orbited to.
+    if (!framedRef.current) {
+      const extent = Math.max(dims[0], dims[1], dims[2]) * voxelSize || 1;
+      const dist = extent / (2 * Math.tan((Math.PI * camera.fov) / 360));
+      camera.position.set(dist * 1.1, dist * 0.9, dist * 1.4);
+      camera.near = extent / 100;
+      camera.far = extent * 100;
+      camera.updateProjectionMatrix();
+      controls.target.set(0, 0, 0);
+      controls.update();
+      framedRef.current = true;
+    }
   }, [data]);
 
   return <div ref={containerRef} className={className ?? "w-full h-full"} />;
